@@ -20,6 +20,5 @@ COPY . .
 # Expose port
 EXPOSE 3000
 
-# Start both Node and Python scripts
-# We use a simple shell script logic to run both concurrently
-CMD node server.js & python3 sync.py & wait -n
+# Start both Node and Python scripts using bash
+CMD ["bash", "-c", "node server.js & python3 sync.py & wait -n"]
