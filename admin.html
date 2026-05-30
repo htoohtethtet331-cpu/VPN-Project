@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VVIP - YLT | Admin Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
+        body { background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #050505 70%); color: white; font-family: 'Outfit', sans-serif; min-height: 100vh; user-select: none; }
+        .glass-panel { background: rgba(20, 20, 25, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+        .expandable-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; opacity: 0; }
+        .expandable-content.open { max-height: 500px; opacity: 1; }
+        .chevron { transition: transform 0.3s ease; }
+        .chevron.open { transform: rotate(180deg); }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #ef4444; border-radius: 10px; }
+        .glass-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 600px; }
+        .glass-table th { background: rgba(255,255,255,0.05); padding: 12px 15px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #9ca3af; border-bottom: 1px solid rgba(255,255,255,0.1); white-space: nowrap; }
+        .glass-table td { padding: 12px 15px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #d1d5db; }
+        .glass-table tr:hover { background: rgba(255,255,255,0.02); }
+        .os-badge { padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 4px;}
+        .os-ios { background: rgba(255,255,255,0.1); color: #fff; }
+        .os-android { background: rgba(16,185,129,0.15); color: #34d399; }
+        .os-windows { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .os-unknown { background: rgba(156,163,175,0.15); color: #9ca3af; }
+        
+        .pattern-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; width: max-content; margin: 0 auto; touch-action: none; }
+        .dot { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); transition: all 0.2s; cursor: pointer; }
+        .dot.active { background: #ef4444; border-color: #ef4444; transform: scale(1.1); box-shadow: 0 0 15px rgba(239,68,68,0.6); }
+
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+        .toast-enter { animation: slideInRight 0.3s ease-out forwards; }
+        .toast-leave { animation: fadeOut 0.3s ease-in forwards; }
+
+        @keyframes rowFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-row { opacity: 0; animation: rowFadeIn 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="p-2 sm:p-4 md:p-10 flex justify-center min-h-screen relative overflow-x-hidden">
+
+    <div id="particles-js" class="fixed inset-0 z-[-1] pointer-events-none opacity-30"></div>
+    <div id="toast-container" class="fixed top-5 right-5 sm:right-10 z-[9999] flex flex-col gap-3 pointer-events-none w-72 max-w-full"></div>
+
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="glass-panel p-6 sm:p-8 rounded-3xl max-w-sm w-full relative border border-red-500/30 text-center shadow-[0_0_40px_rgba(239,68,68,0.2)]">
+            <i class="fa-solid fa-triangle-exclamation text-5xl text-red-500 mb-4 animate-pulse drop-shadow-md"></i>
+            <h3 class="text-xl font-bold text-white mb-2">Delete User?</h3>
+            <p id="confirm-msg" class="text-sm text-gray-400 mb-6">Are you sure you want to permanently delete this user?</p>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal()" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-xl transition-all">Cancel</button>
+                <button id="confirm-yes-btn" class="flex-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#050505] backdrop-blur-xl transition-opacity duration-500">
+        <div class="glass-panel p-8 rounded-3xl max-w-sm w-full text-center relative overflow-hidden border border-red-500/30">
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-red-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <i class="fa-solid fa-shield-cat text-5xl text-red-500 mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)] relative z-10"></i>
+            <h2 class="text-2xl font-bold text-white mb-2 relative z-10">Admin Access</h2>
+            <p id="login-instruction" class="text-xs text-gray-400 mb-6 relative z-10">Connecting to server...</p>
+            
+            <div id="login-pin-section" class="w-full hidden relative z-10">
+                <div class="relative mb-4">
+                    <input type="password" id="admin-pass-input" placeholder="Enter PIN" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-500 text-center tracking-widest">
+                    <button type="button" id="toggle-password" class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-white transition-colors focus:outline-none">
+                        <i class="fa-solid fa-eye" id="toggle-icon"></i>
+                    </button>
+                </div>
+                <button id="btn-login-pin" class="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-3 rounded-xl shadow-[0_5px_15px_rgba(239,68,68,0.3)] transition-all">LOGIN <i class="fa-solid fa-arrow-right ml-1"></i></button>
+            </div>
+
+            <div id="login-pattern-section" class="w-full hidden relative z-10">
+                <div id="login-pattern-grid" class="pattern-grid mb-6">
+                    <div class="dot" data-val="1"></div><div class="dot" data-val="2"></div><div class="dot" data-val="3"></div>
+                    <div class="dot" data-val="4"></div><div class="dot" data-val="5"></div><div class="dot" data-val="6"></div>
+                    <div class="dot" data-val="7"></div><div class="dot" data-val="8"></div><div class="dot" data-val="9"></div>
+                </div>
+            </div>
+
+            <div id="login-locked-section" class="w-full hidden relative z-10 py-4">
+                <i class="fa-solid fa-lock text-3xl text-red-500 mb-2 animate-bounce"></i>
+                <h3 class="text-white font-bold mb-1">Access Locked</h3>
+                <p class="text-xs text-red-400">Too many failed attempts. Try again in <span id="lock-timer" class="font-bold text-white">5</span> mins.</p>
+            </div>
+
+            <p id="login-error" class="text-red-400 text-xs mt-3 hidden relative z-10 animate-pulse"><i class="fa-solid fa-circle-xmark mr-1"></i> Incorrect Credentials!</p>
+        </div>
+    </div>
+
+    <!-- MAIN ADMIN CONTENT -->
+    <div id="main-content" class="w-full max-w-6xl flex flex-col space-y-6 hidden opacity-0 transition-opacity duration-1000">
+        <div class="flex flex-col md:flex-row items-center justify-between mb-2 mt-4 glass-panel p-5 sm:p-6 rounded-3xl border-l-4 border-red-500 relative overflow-hidden">
+            <div class="absolute -left-20 -top-20 w-40 h-40 bg-red-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="flex items-center gap-4 z-10 w-full md:w-auto justify-center md:justify-start">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 shrink-0 bg-gradient-to-br from-red-600 to-orange-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)]">
+                    <i class="fa-solid fa-server text-xl sm:text-2xl text-white"></i>
+                </div>
+                <div class="text-center md:text-left">
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-300 tracking-tight">VVIP ADMIN</h1>
+                    <p class="text-xs sm:text-sm text-gray-400 uppercase tracking-widest">Master Control Center</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 mt-6 md:mt-0 z-10 w-full md:w-auto justify-center">
+                <button id="nav-dash" class="w-[30%] sm:w-auto bg-red-600 text-white px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold shadow-lg transition-all"><i class="fa-solid fa-chart-pie mr-1"></i> Dash</button>
+                <button id="nav-manage" class="w-[30%] sm:w-auto bg-black/50 text-gray-400 hover:text-white border border-white/10 px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all"><i class="fa-solid fa-pen mr-1"></i> Manage</button>
+                <button id="nav-list" class="w-[30%] sm:w-auto bg-black/50 text-gray-400 hover:text-white border border-white/10 px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all"><i class="fa-solid fa-users mr-1"></i> Users</button>
+                <button onclick="openSettingsModal()" class="w-full sm:w-auto bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all mt-2 sm:mt-0 shadow-md">
+                    <i class="fa-solid fa-gear sm:mr-1"></i> <span class="inline">Settings</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="tab-dash-content" class="space-y-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="glass-panel p-5 rounded-2xl border-t-2 border-blue-500">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest">Total Clients</p>
+                    <p class="text-3xl font-bold text-white mt-1" id="stat-users">0</p>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl border-t-2 border-emerald-500">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest">Active Outline</p>
+                    <p class="text-3xl font-bold text-emerald-400 mt-1" id="stat-out">0</p>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl border-t-2 border-violet-500">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest">Active VLESS</p>
+                    <p class="text-3xl font-bold text-violet-400 mt-1" id="stat-vless">0</p>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl border-t-2 border-orange-500">
+                    <p class="text-xs text-gray-400 uppercase tracking-widest">Total Traffic (GB)</p>
+                    <p class="text-3xl font-bold text-orange-400 mt-1" id="stat-traffic">0</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-panel p-6 rounded-3xl h-[300px] flex items-center justify-center relative">
+                    <h3 class="absolute top-4 left-6 text-sm font-bold text-gray-300">Protocol Usage Dist.</h3>
+                    <canvas id="protocolChart" class="max-h-[220px]"></canvas>
+                </div>
+                <div class="glass-panel p-6 rounded-3xl h-[300px] flex flex-col justify-center relative">
+                    <h3 class="absolute top-4 left-6 text-sm font-bold text-gray-300">System Actions</h3>
+                    <div class="space-y-4 mt-8 px-4 w-full">
+                        <a href="/api/backup" target="_blank" class="w-full block text-center bg-blue-600/20 border border-blue-500/50 hover:bg-blue-600/40 text-blue-300 font-bold py-4 rounded-xl transition-all">
+                            <i class="fa-solid fa-download mr-2"></i> DOWNLOAD DB BACKUP
+                        </a>
+                        <button onclick="lockScreen()" class="w-full bg-red-600/20 border border-red-500/50 hover:bg-red-600/40 text-red-300 font-bold py-4 rounded-xl transition-all">
+                            <i class="fa-solid fa-lock mr-2"></i> LOCK SCREEN
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-manage-content" class="space-y-6 hidden">
+            <div class="glass-panel rounded-3xl overflow-hidden border border-red-900/30">
+                <button id="security-trigger" class="w-full p-4 sm:p-6 flex justify-between items-center bg-gradient-to-r from-red-900/20 to-transparent hover:bg-red-900/40 transition-colors group">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-lock text-red-400"></i>
+                        <h2 class="text-base sm:text-lg font-bold text-gray-200 tracking-wide text-left">Server API Settings (Auto Sync)</h2>
+                    </div>
+                    <i id="security-chevron" class="fa-solid fa-chevron-down text-gray-500 chevron shrink-0"></i>
+                </button>
+                <div id="security-content" class="expandable-content bg-black/20">
+                    <div class="p-4 sm:p-6 pt-2">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-black/40 p-3 sm:p-4 rounded-2xl border border-white/5">
+                                <label class="text-xs text-gray-400 uppercase tracking-widest mb-1 block">Outline API URL</label>
+                                <input type="text" id="cfg-outline" autocomplete="off" spellcheck="false" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div class="bg-black/40 p-3 sm:p-4 rounded-2xl border border-white/5">
+                                <label class="text-xs text-gray-400 uppercase tracking-widest mb-1 block">X-UI (VLESS) URL</label>
+                                <input type="text" id="cfg-xui-url" autocomplete="off" spellcheck="false" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div class="bg-black/40 p-3 sm:p-4 rounded-2xl border border-white/5">
+                                <label class="text-xs text-gray-400 uppercase tracking-widest mb-1 block">X-UI Username</label>
+                                <input type="text" id="cfg-xui-user" autocomplete="off" spellcheck="false" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                            <div class="bg-black/40 p-3 sm:p-4 rounded-2xl border border-white/5">
+                                <label class="text-xs text-gray-400 uppercase tracking-widest mb-1 block">X-UI Password</label>
+                                <input type="text" id="cfg-xui-pass" style="-webkit-text-security: disc;" autocomplete="off" spellcheck="false" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500">
+                            </div>
+                        </div>
+                        <div class="mt-4 flex flex-col sm:flex-row items-center gap-3">
+                            <button id="btn-save-cfg" class="w-full sm:w-auto bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white font-bold py-2 px-6 rounded-xl transition-all shadow-lg">SAVE SERVER CONFIG</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-panel p-5 sm:p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold mb-2 text-gray-200 tracking-wide"><i class="fa-solid fa-magnifying-glass text-blue-400 mr-2"></i> Search / Edit User</h2>
+                        <p class="text-xs text-gray-400 mb-4">Find existing user by ID to modify their API limits.</p>
+                        <input type="text" id="search-username" autocomplete="off" spellcheck="false" placeholder="Enter Login ID (e.g. FREE5)" class="w-full bg-black/40 border border-gray-700/50 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 mb-4">
+                    </div>
+                    <button id="btn-fetch" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                        FETCH ACCOUNT <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+                
+                <div class="glass-panel p-5 sm:p-6 rounded-3xl relative overflow-hidden flex flex-col justify-between border border-emerald-500/30">
+                    <div class="absolute -right-10 -bottom-10 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                    <div class="z-10">
+                        <h2 class="text-base sm:text-lg font-bold mb-2 text-white tracking-wide"><i class="fa-solid fa-user-plus text-emerald-400 mr-2"></i> Add New Account</h2>
+                        <p class="text-xs text-gray-400 mb-4">Create a brand new client account from scratch.</p>
+                    </div>
+                    <button id="btn-create-new" class="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold py-3 sm:py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 z-10 text-base sm:text-lg mt-4 sm:mt-0">
+                        <i class="fa-solid fa-plus-circle"></i> CREATE NEW
+                    </button>
+                </div>
+            </div>
+            
+            <div id="editor-section" class="glass-panel p-5 sm:p-6 rounded-3xl hidden relative overflow-hidden transition-all duration-300">
+                <button onclick="closeEditor()" class="absolute top-4 right-4 sm:top-5 sm:right-5 text-gray-500 hover:text-red-400 transition-colors z-50"><i class="fa-solid fa-xmark text-xl sm:text-2xl"></i></button>
+
+                <div class="border-b border-gray-700/50 pb-4 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pr-8">
+                    <h2 class="text-lg sm:text-xl font-bold text-white"><i class="fa-solid fa-pen-to-square text-pink-400 mr-2"></i> Account Config</h2>
+                    <div class="flex bg-black/50 rounded-lg p-1 border border-white/10 w-full sm:w-auto">
+                        <button id="api-btn-both" class="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold bg-white/20 text-white transition-all">Both API</button>
+                        <button id="api-btn-out" class="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white transition-all">Outline Only</button>
+                        <button id="api-btn-vless" class="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white transition-all">VLESS Only</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 z-10 relative">
+                    <div class="col-span-1 md:col-span-2 bg-black/30 p-4 sm:p-5 rounded-2xl border border-pink-500/20">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs text-gray-400 uppercase font-bold text-pink-300">Login ID (User)</label>
+                                <input type="text" id="admin-username" autocomplete="off" spellcheck="false" placeholder="e.g. FREE5" class="w-full bg-black/60 border border-pink-700/50 rounded-xl px-4 py-2.5 sm:py-3 text-sm text-white focus:outline-none focus:border-pink-400 mt-1 font-bold">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-400 uppercase font-bold text-pink-300">Nick Name (Display)</label>
+                                <input type="text" id="user-display-name" autocomplete="off" spellcheck="false" placeholder="e.g. Mg Mg" class="w-full bg-black/60 border border-pink-700/50 rounded-xl px-4 py-2.5 sm:py-3 text-sm text-white focus:outline-none focus:border-pink-400 mt-1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="box-outline" class="space-y-4 bg-black/30 p-4 sm:p-5 rounded-2xl border border-indigo-500/20 transition-all duration-300">
+                        <h3 class="font-bold text-indigo-300"><i class="fa-solid fa-shield-halved mr-2"></i> Outline Setting</h3>
+                        <div>
+                            <label class="text-xs text-gray-400 uppercase">Access Key (ss://)</label>
+                            <input type="text" id="out-key" autocomplete="off" spellcheck="false" class="w-full bg-black/50 border border-indigo-700/50 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-400 mt-1">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-gray-400 uppercase">Total GB (0=Unlim)</label>
+                                <input type="number" id="out-total" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-400 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-400 uppercase">Expire Date</label>
+                                <input type="date" id="out-expire" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-400 mt-1" style="color-scheme:dark;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="box-vless" class="space-y-4 bg-black/30 p-4 sm:p-5 rounded-2xl border border-cyan-500/20 transition-all duration-300">
+                        <h3 class="font-bold text-cyan-300"><i class="fa-solid fa-network-wired mr-2"></i> VLESS Setting</h3>
+                        <div>
+                            <label class="text-xs text-gray-400 uppercase">VLESS Link (vless://)</label>
+                            <input type="text" id="vless-key" autocomplete="off" spellcheck="false" class="w-full bg-black/50 border border-cyan-700/50 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-400 mt-1">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-xs text-gray-400 uppercase">Total GB (0=Unlim)</label>
+                                <input type="number" id="vless-total" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-cyan-400 mt-1">
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-400 uppercase">Expire Date</label>
+                                <input type="date" id="vless-expire" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-cyan-400 mt-1" style="color-scheme:dark;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6 sm:mt-8 w-full">
+                    <button id="btn-save" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-3 sm:py-4 rounded-xl sm:rounded-2xl shadow-[0_10px_20px_rgba(16,185,129,0.3)] text-base sm:text-lg transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> SAVE & COMMIT
+                    </button>
+                    <button id="btn-delete" class="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold py-3 sm:py-4 px-6 rounded-xl sm:rounded-2xl shadow-[0_10px_20px_rgba(225,29,72,0.3)] text-base sm:text-lg transition-all flex items-center justify-center gap-2 hidden">
+                        <i class="fa-solid fa-trash-can"></i> DELETE
+                    </button>
+                </div>
+
+                <div class="bg-indigo-900/20 border border-indigo-500/30 p-4 sm:p-5 rounded-2xl mt-6 hidden" id="link-generator">
+                    <p class="text-xs text-indigo-300 mb-4 font-bold uppercase tracking-widest"><i class="fa-solid fa-link mr-1"></i> Direct Access Links</p>
+                    <div class="space-y-4">
+                        <div id="link-box-out">
+                            <label class="text-[10px] sm:text-xs text-indigo-400 mb-1 block uppercase">Outline Portal Link</label>
+                            <div class="flex items-center gap-2 sm:gap-3">
+                                <input type="text" id="auto-link-outline" class="w-full bg-black/60 border border-indigo-500/50 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-indigo-100 focus:outline-none min-w-0" readonly>
+                                <button id="btn-copy-link-outline" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-bold transition-all shadow-md shrink-0"><i class="fa-solid fa-copy"></i></button>
+                            </div>
+                        </div>
+                        <div id="link-box-vless">
+                            <label class="text-[10px] sm:text-xs text-cyan-400 mb-1 block uppercase">VLESS Portal Link</label>
+                            <div class="flex items-center gap-2 sm:gap-3">
+                                <input type="text" id="auto-link-vless" class="w-full bg-black/60 border border-cyan-500/50 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-cyan-100 focus:outline-none min-w-0" readonly>
+                                <button id="btn-copy-link-vless" class="bg-cyan-600 hover:bg-cyan-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl font-bold transition-all shadow-md shrink-0"><i class="fa-solid fa-copy"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Users Table Tab -->
+        <div id="tab-list-content" class="space-y-6 hidden">
+            <div class="glass-panel p-4 sm:p-6 rounded-3xl overflow-hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 border-b border-gray-800 pb-4">
+                    <h2 class="text-base sm:text-lg font-bold text-gray-200 tracking-wide"><i class="fa-solid fa-database text-red-400 mr-2"></i> Users Database</h2>
+                    <button id="btn-refresh-list" class="text-xs sm:text-sm text-gray-400 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg w-full sm:w-auto"><i class="fa-solid fa-rotate-right mr-1"></i> Refresh</button>
+                </div>
+                <div class="overflow-x-auto pb-2 w-full">
+                    <table class="glass-table w-full">
+                        <thead><tr><th>User ID & Name</th><th>Outline Usage</th><th>VLESS Usage</th><th>Device OS</th><th>Action</th></tr></thead>
+                        <tbody id="users-table-body">
+                            <tr>
+                                <td colspan="5">
+                                    <div class="animate-pulse flex space-x-4 p-4">
+                                        <div class="flex-1 space-y-4 py-1">
+                                            <div class="h-4 bg-white/10 rounded w-3/4"></div>
+                                            <div class="h-4 bg-white/10 rounded w-1/2"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- View User Modal (Read-Only) -->
+    <div id="view-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="glass-panel p-5 sm:p-6 rounded-3xl max-w-xl w-full relative max-h-[90vh] overflow-y-auto border border-blue-500/30">
+            <div class="absolute -right-10 -top-10 w-32 h-32 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <button onclick="closeViewModal()" class="absolute top-4 sm:top-5 right-4 sm:right-5 text-gray-500 hover:text-white transition-colors z-10"><i class="fa-solid fa-xmark text-xl sm:text-2xl"></i></button>
+            <h3 class="text-lg sm:text-xl font-bold text-white mb-5 sm:mb-6 border-b border-gray-700/50 pb-3 sm:pb-4 flex items-center"><i class="fa-solid fa-address-card text-blue-400 mr-3 text-xl sm:text-2xl"></i> Read-Only Details</h3>
+            <div id="view-modal-content" class="space-y-5 sm:space-y-6 relative z-10"></div>
+        </div>
+    </div>
+
+    <!-- Security Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="glass-panel p-6 sm:p-8 rounded-3xl max-w-md w-full relative border border-gray-500/30 text-center">
+            <button onclick="closeSettingsModal()" class="absolute top-5 right-5 text-gray-500 hover:text-white transition-colors z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+            <h3 class="text-xl font-bold text-white mb-6"><i class="fa-solid fa-shield-halved text-gray-300 mr-2"></i> Security Settings</h3>
+            
+            <div class="flex bg-black/50 rounded-lg p-1 border border-white/10 mb-6">
+                <button id="tab-pin-btn" onclick="switchSettingsTab('pin')" class="flex-1 px-4 py-2 rounded-md text-sm font-bold bg-white/20 text-white transition-all">Use PIN</button>
+                <button id="tab-pattern-btn" onclick="switchSettingsTab('pattern')" class="flex-1 px-4 py-2 rounded-md text-sm font-bold text-gray-400 hover:text-white transition-all">Use Pattern</button>
+            </div>
+
+            <div id="settings-pin-ui">
+                <p class="text-xs text-gray-400 mb-4">Set a numeric PIN code for Admin Access.</p>
+                <input type="password" id="new-pin-input" placeholder="Enter New PIN" class="w-full bg-black/50 border border-gray-700/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white mb-4 text-center tracking-widest">
+                <button onclick="savePin()" class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg">SET & ACTIVATE PIN</button>
+            </div>
+
+            <div id="settings-pattern-ui" class="hidden">
+                <p class="text-xs text-gray-400 mb-4">Draw your new pattern to lock Admin Access.</p>
+                <div id="settings-pattern-grid" class="pattern-grid mb-4">
+                    <div class="dot" data-val="1"></div><div class="dot" data-val="2"></div><div class="dot" data-val="3"></div>
+                    <div class="dot" data-val="4"></div><div class="dot" data-val="5"></div><div class="dot" data-val="6"></div>
+                    <div class="dot" data-val="7"></div><div class="dot" data-val="8"></div><div class="dot" data-val="9"></div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="clearSettingsPattern()" class="w-1/3 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-3 rounded-xl transition-all">CLEAR</button>
+                    <button onclick="savePattern()" class="w-2/3 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl transition-all shadow-lg">SET & ACTIVATE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        if (typeof particlesJS !== 'undefined') {
+            particlesJS("particles-js", {
+                "particles": { "number": { "value": 50 }, "color": { "value": "#ef4444" }, "shape": { "type": "circle" }, "opacity": { "value": 0.5 }, "size": { "value": 3 }, "line_linked": { "enable": true, "distance": 150, "color": "#ef4444", "opacity": 0.4, "width": 1 }, "move": { "enable": true, "speed": 2 } },
+                "interactivity": { "events": { "onhover": { "enable": true, "mode": "grab" } }, "modes": { "grab": { "distance": 140, "line_linked": { "opacity": 1 } } } }
+            });
+        }
+
+        const socket = io(); 
+        let allUsersCache = {}; 
+        let chartInstance = null;
+        let userToDelete = null;
+        let inactivityTimer;
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(lockScreen, 300000); 
+        }
+
+        window.onload = resetInactivityTimer;
+        document.onmousemove = resetInactivityTimer;
+        document.onkeypress = resetInactivityTimer;
+        document.ontouchstart = resetInactivityTimer;
+
+        window.lockScreen = function() {
+            document.getElementById('main-content').classList.add('hidden', 'opacity-0');
+            document.getElementById('login-screen').classList.remove('hidden');
+            setTimeout(() => document.getElementById('login-screen').classList.remove('opacity-0'), 50);
+            document.getElementById('admin-pass-input').value = '';
+            loginLock.reset();
+            showToast("Screen locked due to inactivity.", "info");
+        };
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgColor, icon;
+            if(type === 'success') { bgColor = 'bg-emerald-500/90 border-emerald-400'; icon = 'fa-check-circle'; }
+            else if(type === 'error') { bgColor = 'bg-red-500/90 border-red-400'; icon = 'fa-circle-xmark'; }
+            else { bgColor = 'bg-blue-500/90 border-blue-400'; icon = 'fa-info-circle'; }
+
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl border border-white/20 text-white shadow-xl backdrop-blur-md toast-enter ${bgColor} pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-lg drop-shadow-md"></i> <span class="text-sm font-bold tracking-wide">${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.replace('toast-enter', 'toast-leave');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        document.getElementById('toggle-password').addEventListener('click', function() {
+            const passwordInput = document.getElementById('admin-pass-input');
+            const icon = document.getElementById('toggle-icon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        function animateValue(id, start, end, duration) {
+            if (start === end) { document.getElementById(id).innerText = end; return; }
+            let range = end - start;
+            let current = start;
+            let increment = end > start ? 1 : -1;
+            let stepTime = Math.abs(Math.floor(duration / range)) || 10;
+            let obj = document.getElementById(id);
+            let timer = setInterval(function() {
+                current += increment;
+                obj.innerText = current;
+                if (current == end) { clearInterval(timer); }
+            }, stepTime);
+        }
+
+        function createPatternLock(gridId, onCompleteCallback) {
+            const grid = document.getElementById(gridId);
+            const dots = grid.querySelectorAll('.dot');
+            let pattern = [];
+            let drawing = false;
+
+            const reset = () => {
+                pattern = [];
+                dots.forEach(d => d.classList.remove('active'));
+            };
+
+            const activateDot = (dot) => {
+                const val = dot.getAttribute('data-val');
+                if (!pattern.includes(val)) {
+                    pattern.push(val);
+                    dot.classList.add('active');
+                }
+            };
+
+            grid.addEventListener('mousedown', (e) => {
+                drawing = true; reset();
+                if(e.target.classList.contains('dot')) activateDot(e.target);
+            });
+
+            grid.addEventListener('touchstart', (e) => {
+                drawing = true; reset();
+                let touch = e.touches[0];
+                let target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if(target && target.classList.contains('dot')) activateDot(target);
+            }, {passive: false});
+
+            document.addEventListener('mousemove', (e) => {
+                if (!drawing) return;
+                if(e.target.classList.contains('dot') && e.target.parentElement.id === gridId) activateDot(e.target);
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!drawing) return;
+                e.preventDefault(); 
+                let touch = e.touches[0];
+                let target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if(target && target.classList.contains('dot') && target.parentElement.id === gridId) activateDot(target);
+            }, {passive: false});
+
+            const endDrawing = () => {
+                if (drawing) {
+                    drawing = false;
+                    if (pattern.length > 0 && onCompleteCallback) onCompleteCallback(pattern.join(''));
+                }
+            };
+
+            document.addEventListener('mouseup', endDrawing);
+            document.addEventListener('touchend', endDrawing);
+
+            return { reset, getPattern: () => pattern.join('') };
+        }
+
+        let loginPatternCode = "";
+        let settingsPatternCode = "";
+        const loginLock = createPatternLock('login-pattern-grid', (code) => { loginPatternCode = code; loginAttempt(code); });
+        const settingsLock = createPatternLock('settings-pattern-grid', (code) => { settingsPatternCode = code; });
+
+        socket.on('auth_mode_info', (type) => {
+            const ins = document.getElementById('login-instruction');
+            const pinSec = document.getElementById('login-pin-section');
+            const patSec = document.getElementById('login-pattern-section');
+            
+            if(type === 'pin') {
+                ins.innerText = "Enter PIN code to continue.";
+                pinSec.classList.remove('hidden'); patSec.classList.add('hidden');
+            } else {
+                ins.innerText = "Draw pattern to continue.";
+                patSec.classList.remove('hidden'); pinSec.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('btn-login-pin').addEventListener('click', () => {
+            loginAttempt(document.getElementById('admin-pass-input').value);
+        });
+
+        function loginAttempt(credential) {
+            document.getElementById('login-error').classList.add('hidden');
+            socket.emit('admin_login_attempt', credential);
+        }
+
+        socket.on('admin_login_success', () => {
+            document.getElementById('login-screen').classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+                setTimeout(() => document.getElementById('main-content').classList.remove('opacity-0'), 50);
+                
+                socket.emit('admin_get_config');
+                socket.emit('admin_get_analytics');
+                resetInactivityTimer(); 
+                showToast("Welcome to VVIP Dashboard!", "success");
+            }, 500);
+        });
+
+        socket.on('admin_login_failed', (attemptsLeft) => {
+            loginLock.reset();
+            document.getElementById('admin-pass-input').value = '';
+            const errEl = document.getElementById('login-error');
+            errEl.innerHTML = `<i class="fa-solid fa-circle-xmark mr-1"></i> Incorrect! ${attemptsLeft} attempts left.`;
+            errEl.classList.remove('hidden');
+        });
+
+        socket.on('admin_login_locked', (mins) => {
+            document.getElementById('login-pin-section').classList.add('hidden');
+            document.getElementById('login-pattern-section').classList.add('hidden');
+            document.getElementById('login-instruction').classList.add('hidden');
+            document.getElementById('login-error').classList.add('hidden');
+            
+            const lockSec = document.getElementById('login-locked-section');
+            document.getElementById('lock-timer').innerText = mins;
+            lockSec.classList.remove('hidden');
+        });
+
+        function openSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            switchSettingsTab('pin');
+        }
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+            settingsLock.reset();
+        }
+        function switchSettingsTab(tab) {
+            const btnP = document.getElementById('tab-pin-btn');
+            const btnPat = document.getElementById('tab-pattern-btn');
+            const uiP = document.getElementById('settings-pin-ui');
+            const uiPat = document.getElementById('settings-pattern-ui');
+
+            btnP.className = "flex-1 px-4 py-2 rounded-md text-sm font-bold text-gray-400 hover:text-white transition-all";
+            btnPat.className = "flex-1 px-4 py-2 rounded-md text-sm font-bold text-gray-400 hover:text-white transition-all";
+            uiP.classList.add('hidden'); uiPat.classList.add('hidden');
+
+            if(tab === 'pin') {
+                btnP.className = "flex-1 px-4 py-2 rounded-md text-sm font-bold bg-white/20 text-white transition-all";
+                uiP.classList.remove('hidden');
+            } else {
+                btnPat.className = "flex-1 px-4 py-2 rounded-md text-sm font-bold bg-white/20 text-white transition-all";
+                uiPat.classList.remove('hidden');
+                settingsLock.reset();
+                settingsPatternCode = "";
+            }
+        }
+        function clearSettingsPattern() {
+            settingsLock.reset();
+            settingsPatternCode = "";
+        }
+        function savePin() {
+            const p = document.getElementById('new-pin-input').value;
+            if(p.length < 3) return showToast("PIN must be at least 3 characters.", "error");
+            socket.emit('admin_update_auth', { type: 'pin', code: p });
+        }
+        function savePattern() {
+            if(settingsPatternCode.length < 3) return showToast("Pattern must connect at least 3 dots.", "error");
+            socket.emit('admin_update_auth', { type: 'pattern', code: settingsPatternCode });
+        }
+        socket.on('admin_auth_updated', (type) => {
+            showToast(`Authentication updated to ${type.toUpperCase()} Lock!`, "success");
+            closeSettingsModal();
+        });
+
+        function universalCopy(text, onSuccess, onError) {
+            if (!text) return;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => { if(onSuccess) onSuccess(); }).catch(() => { fallbackCopy(); });
+            } else { fallbackCopy(); }
+
+            function fallbackCopy() {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed"; textArea.style.top = "0"; textArea.style.left = "0"; textArea.style.opacity = "0";
+                document.body.appendChild(textArea);
+                textArea.focus(); textArea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful && onSuccess) onSuccess(); else if (!successful && onError) onError();
+                } catch (err) { if(onError) onError(); }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        const navDash = document.getElementById('nav-dash');
+        const navManage = document.getElementById('nav-manage');
+        const navList = document.getElementById('nav-list');
+        const tabDashContent = document.getElementById('tab-dash-content');
+        const tabManageContent = document.getElementById('tab-manage-content');
+        const tabListContent = document.getElementById('tab-list-content');
+
+        function resetTabs() {
+            [navDash, navManage, navList].forEach(b => b.className = "w-[30%] sm:w-auto bg-black/50 text-gray-400 hover:text-white border border-white/10 px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold transition-all");
+            [tabDashContent, tabManageContent, tabListContent].forEach(t => t.classList.add('hidden'));
+        }
+
+        navDash.addEventListener('click', () => {
+            resetTabs();
+            navDash.className = "w-[30%] sm:w-auto bg-red-600 text-white px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold shadow-lg transition-all";
+            tabDashContent.classList.remove('hidden');
+            socket.emit('admin_get_analytics');
+        });
+
+        navManage.addEventListener('click', () => {
+            resetTabs();
+            navManage.className = "w-[30%] sm:w-auto bg-red-600 text-white px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold shadow-lg transition-all";
+            tabManageContent.classList.remove('hidden');
+        });
+
+        navList.addEventListener('click', () => {
+            resetTabs();
+            navList.className = "w-[30%] sm:w-auto bg-red-600 text-white px-4 py-2.5 rounded-xl text-[10px] sm:text-sm font-bold shadow-lg transition-all";
+            tabListContent.classList.remove('hidden');
+            socket.emit('admin_get_all_users'); 
+        });
+
+        socket.on('admin_analytics_data', (data) => {
+            animateValue('stat-users', parseInt(document.getElementById('stat-users').innerText) || 0, data.totalUsers, 1000);
+            animateValue('stat-out', parseInt(document.getElementById('stat-out').innerText) || 0, data.activeOut, 1000);
+            animateValue('stat-vless', parseInt(document.getElementById('stat-vless').innerText) || 0, data.activeVless, 1000);
+            animateValue('stat-traffic', parseInt(document.getElementById('stat-traffic').innerText) || 0, data.totalGB, 1000);
+
+            const ctx = document.getElementById('protocolChart');
+            if(ctx && typeof Chart !== 'undefined') {
+                if(chartInstance) chartInstance.destroy();
+                chartInstance = new Chart(ctx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Outline (GB)', 'VLESS (GB)'],
+                        datasets: [{
+                            data: [data.outGB, data.vlessGB],
+                            backgroundColor: ['#10b981', '#8b5cf6'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { cutout: '75%', plugins: { legend: { position: 'bottom', labels: { color: '#9ca3af' } } } }
+                });
+            }
+        });
+
+        document.getElementById('security-trigger').addEventListener('click', () => {
+            document.getElementById('security-content').classList.toggle('open');
+            document.getElementById('security-chevron').classList.toggle('open');
+        });
+
+        document.getElementById('btn-save-cfg').addEventListener('click', () => {
+            const config = {
+                outline_url: document.getElementById('cfg-outline').value,
+                xui_url: document.getElementById('cfg-xui-url').value,
+                xui_user: document.getElementById('cfg-xui-user').value,
+                xui_pass: document.getElementById('cfg-xui-pass').value
+            };
+            socket.emit('admin_save_config', config);
+            showToast("Server configuration saved!", "success");
+        });
+
+        socket.on('admin_config_data', (config) => {
+            if(config) {
+                document.getElementById('cfg-outline').value = config.outline_url || '';
+                document.getElementById('cfg-xui-url').value = config.xui_url || '';
+                document.getElementById('cfg-xui-user').value = config.xui_user || '';
+                document.getElementById('cfg-xui-pass').value = config.xui_pass || '';
+            }
+        });
+
+        const boxOutline = document.getElementById('box-outline');
+        const boxVless = document.getElementById('box-vless');
+        const linkBoxOut = document.getElementById('link-box-out');
+        const linkBoxVless = document.getElementById('link-box-vless');
+        const btnBoth = document.getElementById('api-btn-both');
+        const btnOut = document.getElementById('api-btn-out');
+        const btnVless = document.getElementById('api-btn-vless');
+
+        function setApiView(type) {
+            [btnBoth, btnOut, btnVless].forEach(b => b.className = "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold text-gray-400 hover:text-white transition-all");
+            
+            if(type === 'both') {
+                btnBoth.className = "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold bg-white/20 text-white transition-all";
+                boxOutline.classList.remove('hidden'); boxVless.classList.remove('hidden');
+                linkBoxOut.classList.remove('hidden'); linkBoxVless.classList.remove('hidden');
+            } else if(type === 'out') {
+                btnOut.className = "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold bg-indigo-600 text-white transition-all";
+                boxOutline.classList.remove('hidden'); boxVless.classList.add('hidden');
+                linkBoxOut.classList.remove('hidden'); linkBoxVless.classList.add('hidden');
+            } else if(type === 'vless') {
+                btnVless.className = "flex-1 sm:flex-none px-2 sm:px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold bg-cyan-600 text-white transition-all";
+                boxOutline.classList.add('hidden'); boxVless.classList.remove('hidden');
+                linkBoxOut.classList.add('hidden'); linkBoxVless.classList.remove('hidden');
+            }
+        }
+        
+        btnBoth.addEventListener('click', () => setApiView('both'));
+        btnOut.addEventListener('click', () => setApiView('out'));
+        btnVless.addEventListener('click', () => setApiView('vless'));
+
+        document.getElementById('btn-create-new').addEventListener('click', () => {
+            const editorSec = document.getElementById('editor-section');
+            document.querySelectorAll('#editor-section input[type="text"]:not(#auto-link-outline):not(#auto-link-vless):not(#auto-link-user), #editor-section input[type="number"], #editor-section input[type="date"]').forEach(inp => inp.value = "");
+            
+            document.getElementById('out-total').value = "0";
+            document.getElementById('vless-total').value = "0";
+            document.getElementById('admin-username').focus();
+            document.getElementById('btn-delete').classList.add('hidden');
+
+            document.getElementById('link-generator').classList.add('hidden');
+            setApiView('both'); 
+            editorSec.classList.remove('hidden');
+            setTimeout(() => { editorSec.classList.remove('opacity-0', 'translate-y-4'); }, 50);
+            editorSec.scrollIntoView({ behavior: 'smooth' });
+            
+            showToast("Ready to create new account.", "info");
+        });
+
+        document.getElementById('btn-fetch').addEventListener('click', () => {
+            const searchId = document.getElementById('search-username').value.trim().toUpperCase(); 
+            if(!searchId) return;
+            
+            const editorSec = document.getElementById('editor-section');
+            editorSec.classList.add('opacity-0', 'translate-y-4');
+
+            socket.emit('admin_fetch_user', searchId);
+        });
+
+        socket.on('admin_user_data', (res) => {
+            const searchId = res.id;
+            const editorSec = document.getElementById('editor-section');
+
+            if (res.exists) {
+                const data = res.data;
+                showToast(`Loaded existing user: ${searchId}`, "success");
+                
+                document.getElementById('admin-username').value = searchId;
+                document.getElementById('user-display-name').value = data.displayName || ""; 
+                document.getElementById('out-key').value = data.outlineKey || ""; 
+                document.getElementById('out-total').value = data.outlineTotalGB || 0; 
+                document.getElementById('out-expire').value = data.outlineExpireDate || "";
+                document.getElementById('vless-key').value = data.vlessKey || ""; 
+                document.getElementById('vless-total').value = data.vlessTotalGB || 0; 
+                document.getElementById('vless-expire').value = data.vlessExpireDate || "";
+                
+                document.getElementById('btn-delete').classList.remove('hidden');
+
+                setApiView('both');
+                
+                const baseUrl = window.location.origin + "/";
+                document.getElementById('auto-link-outline').value = baseUrl + "outline.html?id=" + searchId;
+                document.getElementById('auto-link-vless').value = baseUrl + "vless.html?id=" + searchId;
+                
+                const linkGen = document.getElementById('link-generator');
+                if(linkGen) linkGen.classList.remove('hidden');
+                
+                editorSec.classList.remove('hidden');
+                setTimeout(() => { editorSec.classList.remove('opacity-0', 'translate-y-4'); }, 50);
+                editorSec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                showToast(`User ID ${searchId} not found!`, "error");
+            }
+        });
+
+        document.getElementById('btn-save').addEventListener('click', () => {
+            const username = document.getElementById('admin-username').value.trim().toUpperCase();
+            if(!username) return showToast("Please enter Login ID (User) first.", "error");
+            
+            const btn = document.getElementById('btn-save'); 
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> COMMITTING...';
+
+            const userData = {
+                displayName: document.getElementById('user-display-name').value.trim(),
+                outlineKey: document.getElementById('out-key').value.trim(), 
+                outlineTotalGB: Number(document.getElementById('out-total').value) || 0, 
+                outlineExpireDate: document.getElementById('out-expire').value || "",
+                vlessKey: document.getElementById('vless-key').value.trim(), 
+                vlessTotalGB: Number(document.getElementById('vless-total').value) || 0, 
+                vlessExpireDate: document.getElementById('vless-expire').value || ""
+            };
+
+            socket.emit('admin_save_user', { username: username, data: userData });
+            
+            const baseUrl = window.location.origin + "/";
+            document.getElementById('auto-link-outline').value = baseUrl + "outline.html?id=" + username;
+            document.getElementById('auto-link-vless').value = baseUrl + "vless.html?id=" + username;
+            
+            const linkGen = document.getElementById('link-generator');
+            if(linkGen) linkGen.classList.remove('hidden');
+            
+            document.getElementById('btn-delete').classList.remove('hidden');
+        });
+
+        socket.on('admin_save_success', () => {
+            const btn = document.getElementById('btn-save'); 
+            btn.innerHTML = '<i class="fa-solid fa-check-double"></i> SUCCESS'; 
+            btn.classList.replace('from-emerald-600', 'from-indigo-600');
+            btn.classList.replace('to-teal-600', 'to-blue-600');
+            
+            showToast("Account saved successfully!", "success");
+
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> SAVE & COMMIT';
+                btn.classList.replace('from-indigo-600', 'from-emerald-600');
+                btn.classList.replace('to-blue-600', 'to-teal-600');
+            }, 2500);
+        });
+
+        function setupCopyBtn(btnId, inputId, defaultColorClass) {
+            const btn = document.getElementById(btnId);
+            if(!btn) return;
+            btn.addEventListener('click', (e) => {
+                const linkInput = document.getElementById(inputId);
+                if(!linkInput) return;
+                const textToCopy = linkInput.value;
+                const targetBtn = e.currentTarget;
+
+                universalCopy(textToCopy, () => {
+                    targetBtn.innerHTML = '<i class="fa-solid fa-check"></i>'; 
+                    targetBtn.classList.replace(defaultColorClass, 'bg-emerald-600');
+                    setTimeout(() => { targetBtn.innerHTML = '<i class="fa-solid fa-copy"></i>'; targetBtn.classList.replace('bg-emerald-600', defaultColorClass); }, 2000);
+                    showToast("Link Copied!", "success");
+                }, () => {
+                    showToast("Failed to copy! Please copy manually.", "error");
+                });
+            });
+        }
+        setupCopyBtn('btn-copy-link-outline', 'auto-link-outline', 'bg-indigo-600');
+        setupCopyBtn('btn-copy-link-vless', 'auto-link-vless', 'bg-cyan-600');
+
+        window.copyTextOnly = function(text) {
+            universalCopy(text, () => {
+                showToast("Copied to clipboard!", "success");
+            }, () => {
+                showToast("Failed to copy! Please copy manually.", "error");
+            });
+        }
+
+        window.closeEditor = function() {
+            document.getElementById('editor-section').classList.add('hidden');
+            const linkGen = document.getElementById('link-generator');
+            if(linkGen) linkGen.classList.add('hidden');
+            document.getElementById('search-username').value = '';
+        }
+
+        socket.on('admin_all_users_data', (users) => {
+            users = users || {};
+            allUsersCache = users; 
+            const tbody = document.getElementById('users-table-body');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            
+            if(Object.keys(users).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-500 py-4 text-sm">No users found.</td></tr>';
+                return;
+            }
+
+            let delay = 0; 
+            for(const [userId, data] of Object.entries(users)) {
+                let osClass = 'os-unknown'; let osIcon = 'fa-desktop';
+                if(data.deviceOS === 'iOS') { osClass = 'os-ios'; osIcon = 'fa-apple'; }
+                else if(data.deviceOS === 'Android') { osClass = 'os-android'; osIcon = 'fa-android'; }
+                else if(data.deviceOS === 'Windows') { osClass = 'os-windows'; osIcon = 'fa-windows'; }
+
+                let outStr = data.outlineKey ? `<span class="text-emerald-400 font-bold">${data.outlineUsedGB || 0}</span> / ${data.outlineTotalGB || 'Unlim'} GB` : `<span class="text-gray-600 text-xs">N/A</span>`;
+                let vlessStr = data.vlessKey ? `<span class="text-violet-400 font-bold">${data.vlessUsedGB || 0}</span> / ${data.vlessTotalGB || 'Unlim'} GB` : `<span class="text-gray-600 text-xs">N/A</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="animate-row" style="animation-delay: ${delay}s">
+                        <td>
+                            <b class="text-white">${userId}</b> 
+                            <span class="block sm:inline text-[10px] sm:text-xs text-gray-500 sm:ml-2">${data.displayName || ''}</span>
+                        </td>
+                        <td>${outStr}</td>
+                        <td>${vlessStr}</td>
+                        <td><span class="os-badge ${osClass}"><i class="fa-brands ${osIcon}"></i> ${data.deviceOS || 'Unknown'}</span></td>
+                        <td>
+                            <div class="flex gap-1.5 sm:gap-2">
+                                <button onclick="viewUser('${userId}')" title="View Detail (Read-Only)" class="text-emerald-400 hover:text-white bg-emerald-500/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fa-solid fa-eye"></i></button>
+                                <button onclick="editUser('${userId}')" title="Edit User" class="text-blue-400 hover:text-white bg-blue-500/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="openConfirmModal('${userId}')" title="Delete User" class="text-red-400 hover:text-white bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                delay += 0.05; 
+            }
+        });
+
+        document.getElementById('btn-refresh-list').addEventListener('click', () => {
+            const tbody = document.getElementById('users-table-body');
+            if(tbody) {
+                tbody.innerHTML = `
+                    <tr><td colspan="5"><div class="animate-pulse flex space-x-4 p-4"><div class="flex-1 space-y-4 py-1"><div class="h-4 bg-white/10 rounded w-3/4"></div><div class="h-4 bg-white/10 rounded w-1/2"></div></div></div></td></tr>
+                `;
+            }
+            socket.emit('admin_get_all_users');
+        });
+        
+        window.editUser = function(userId) {
+            navManage.click();
+            document.getElementById('search-username').value = userId;
+            document.getElementById('btn-fetch').click();
+        };
+
+        window.viewUser = function(userId) {
+            const data = allUsersCache[userId];
+            if(!data) return;
+
+            const content = document.getElementById('view-modal-content');
+            const baseUrl = window.location.origin + "/";
+            const outLink = baseUrl + "outline.html?id=" + userId;
+            const vlessLink = baseUrl + "vless.html?id=" + userId;
+
+            content.innerHTML = `
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-black/40 p-4 rounded-xl border border-white/5">
+                        <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Login ID</p>
+                        <p class="text-2xl font-bold text-white">${userId}</p>
+                    </div>
+                    <div class="bg-black/40 p-4 rounded-xl border border-white/5">
+                        <p class="text-xs text-gray-500 uppercase tracking-widest mb-1">Display Name</p>
+                        <p class="text-lg font-bold text-gray-300 mt-1">${data.displayName || 'N/A'}</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4 mt-4">
+                    <div class="bg-indigo-900/20 p-5 rounded-xl border border-indigo-500/30">
+                        <h4 class="text-sm font-bold text-indigo-300 mb-4"><i class="fa-solid fa-shield-halved mr-2"></i> Outline Protocol</h4>
+                        <div class="grid grid-cols-3 gap-2 text-sm text-gray-300 mb-4 bg-black/30 p-3 rounded-lg border border-white/5">
+                            <div><span class="text-gray-500 block text-xs uppercase tracking-widest">Used</span><b class="text-emerald-400 text-lg">${data.outlineUsedGB || 0} GB</b></div>
+                            <div><span class="text-gray-500 block text-xs uppercase tracking-widest">Total</span><b class="text-lg">${data.outlineTotalGB || 'Unlim'} GB</b></div>
+                            <div><span class="text-gray-500 block text-xs uppercase tracking-widest">Expire</span><b class="text-sm block mt-1">${data.outlineExpireDate || 'No Expiry'}</b></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" readonly value="${data.outlineKey || 'No Key Configured'}" class="w-full bg-black/50 border border-indigo-500/50 rounded-lg px-4 py-2 text-sm text-indigo-200 focus:outline-none">
+                            <button onclick="copyTextOnly('${data.outlineKey || ''}')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg text-sm transition-colors" title="Copy Key"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="bg-violet-900/20 p-5 rounded-xl border border-violet-500/30">
+                        <h4 class="text-sm font-bold text-violet-300 mb-4"><i class="fa-solid fa-network-wired mr-2"></i> VLESS Protocol</h4>
+                        <div class="grid grid-cols-3 gap-2 text-sm text-gray-300 mb-4 bg-black/30 p-3 rounded-lg border border-white/5">
+                            <div><span class="text-gray-500 block text-xs uppercase tracking-widest">Used</span><b class="text-fuchsia-400 text-lg">${data.vlessUsedGB || 0} GB</b></div>
+                            <div><span class="text-gray-500 block text-xs uppercase tracking-widest">Total</span><b class="text-lg">${data.vlessTotalGB || 'Unlim'} GB</b></div>
+                            <div><span class="text-gray-500 block text-xs uppercase tracking-widest">Expire</span><b class="text-sm block mt-1">${data.vlessExpireDate || 'No Expiry'}</b></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" readonly value="${data.vlessKey || 'No Link Configured'}" class="w-full bg-black/50 border border-violet-500/50 rounded-lg px-4 py-2 text-sm text-violet-200 focus:outline-none">
+                            <button onclick="copyTextOnly('${data.vlessKey || ''}')" class="bg-violet-600 hover:bg-violet-500 text-white px-5 py-2 rounded-lg text-sm transition-colors" title="Copy Link"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/40 p-5 rounded-xl border border-white/10">
+                        <h4 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider"><i class="fa-solid fa-link mr-1"></i> Direct Web Links</h4>
+                        <div class="flex flex-col gap-3">
+                            <div class="flex items-center gap-3"><span class="text-xs text-gray-500 w-16 font-bold">OUTLINE:</span> <input type="text" readonly value="${outLink}" class="flex-1 bg-black/50 rounded px-3 py-1.5 text-xs text-blue-300 outline-none border border-white/5"> <button onclick="copyTextOnly('${outLink}')" class="text-gray-400 hover:text-white px-2"><i class="fa-solid fa-copy"></i></button></div>
+                            <div class="flex items-center gap-3"><span class="text-xs text-gray-500 w-16 font-bold">VLESS:</span> <input type="text" readonly value="${vlessLink}" class="flex-1 bg-black/50 rounded px-3 py-1.5 text-xs text-blue-300 outline-none border border-white/5"> <button onclick="copyTextOnly('${vlessLink}')" class="text-gray-400 hover:text-white px-2"><i class="fa-solid fa-copy"></i></button></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('view-modal').classList.remove('hidden');
+        };
+
+        window.closeViewModal = function() {
+            document.getElementById('view-modal').classList.add('hidden');
+        };
+
+        window.openConfirmModal = function(userId) {
+            userToDelete = userId;
+            document.getElementById('confirm-msg').innerText = `Are you sure you want to permanently delete user: ${userId}?`;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        };
+        window.closeConfirmModal = function() {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            userToDelete = null;
+        };
+
+        document.getElementById('btn-delete').addEventListener('click', () => {
+            const username = document.getElementById('admin-username').value;
+            openConfirmModal(username);
+        });
+
+        document.getElementById('confirm-yes-btn').addEventListener('click', () => {
+            if(userToDelete) {
+                socket.emit('admin_delete_user', userToDelete);
+                closeConfirmModal();
+            }
+        });
+
+        socket.on('admin_delete_success', () => {
+            showToast("Account deleted successfully!", "success");
+            closeEditor(); 
+        });
+    </script>
+</body>
+</html>
